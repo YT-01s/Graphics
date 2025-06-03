@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>3D 캐릭터 전시 UI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="loadingOverlay" style="
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: black;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    z-index: 9999;
+">
+        미술관 입장중...
+    </div>
+    <div class="content">
+        <div class="main-ui" id="three-area">
+            <div id="crosshair">+</div>
+        </div>
+        <div class="sidebar">
+            <div class="description">
+                <b>미술 그림, 석상<br>에 대한 설명</b>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="lockOverlay"
+        style="position:absolute; top:0; left:0; right:0; bottom:0; background:#000000aa; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
+        클릭하여 시작
+    </div>
+
+    <!-- THREE.js & GLTF -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/examples/": "https://unpkg.com/three/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/examples/loaders/GLTFLoader.js';
+
+        let scene, camera, renderer, cameraParent;
+        const keys = {};
+        let pitch = 0, yaw = 29.9;
+        const moveSpeed = 0.15;
+        const sensitivity = 0.002;
+        let collidableObjects = [];
+        let isLocked = false;
+        let spotLights = [];
+        let sound;
+        let lockOverlay;
+        let loadingOverlay;
+
+        const BOUNDS = {
+            minX: -20,
+            maxX: 30,
+            minZ: -30,
+            maxZ: 10,
+        };
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById("three-area");
+
+            loadingOverlay = document.getElementById('loadingOverlay');
+            lockOverlay = document.getElementById('lockOverlay');
+            lockOverlay.addEventListener('click', () => {
+                container.requestPointerLock().catch((err) => {
+                    console.warn("PointerLock 요청 실패:", err);
+                });
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === container) {
+                    isLocked = true;
+                    document.addEventListener('mousemove', onMouseMove);
+                    lockOverlay.style.display = 'none';
+                    if (sound && !sound.isPlaying) {
+                        sound.play();
+                    }
+                } else {
+                    isLocked = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    lockOverlay.style.display = 'flex';
+                }
+            });
+
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 2000);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(0, 0, 0);
+            cameraParent = new THREE.Object3D();
+            cameraParent.position.set(-45, 5, 15); // y = 눈높이
+
+            cameraParent.add(camera);
+            scene.add(cameraParent);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // 조명
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+
+            // 그림 큐브
+            const textureLoader = new THREE.TextureLoader();
+
+            async function loadTexture(url) {
+                return new Promise((resolve, reject) => {
+                    textureLoader.load(url, resolve, undefined, reject);
+                });
+            }
+
+            async function addArtworkAndButtons() {
+
+                const lascauxTexture = await loadTexture('./Resources/LascauxCaves.jpg');
+                const pyramid = await loadTexture('./Resources/Pyramid.jpg');
+                const glass = await loadTexture('./Resources/glass.jpg');
+                const monaTexture = await loadTexture('./Resources/MonnaLisa.jpg');
+                const TheLastSupper = await loadTexture('./Resources/TheLastSupper.jpg');
+                const TheBirthofVenus = await loadTexture('./Resources/TheBirthofVenus.jpg');
+                const MeisjeMetDeParel = await loadTexture('./Resources/MeisjeMetDeParel.jpg');
+                const TheSwing = await loadTexture('./Resources/TheSwing.jpg');
+                const LibertyLeadingthePeople = await loadTexture('./Resources/LibertyLeadingthePeople.jpg');
+                const TheDeathofSocrates = await loadTexture('./Resources/TheDeathofSocrates.jpg');
+                const TheScream = await loadTexture('./Resources/TheScream.jpg');
+                const night = await loadTexture('./Resources/night.jpg');
+                const ThePersistenceofMemory = await loadTexture('./Resources/ThePersistenceofMemory.jpg');
+                const HappyTears = await loadTexture('./Resources/HappyTears.jpg');
+
+
+                const artworks = [
+                    [lascauxTexture, 13, 7.3, new THREE.Vector3(-40, 8, 29.9)],
+                    [pyramid, 12, 7, new THREE.Vector3(-20, 8, 29.9)],
+                    [glass, 13, 7.5, new THREE.Vector3(0, 8.2, 29.9)],
+                    [monaTexture, 5.3, 7.3, new THREE.Vector3(20, 8, 29.9)],
+                    [TheLastSupper, 13, 7.5, new THREE.Vector3(40, 8.1, 29.9)],
+                    [TheBirthofVenus, 5.3, 7.3, new THREE.Vector3(49.9, 8, 19), new THREE.Euler(0, Math.PI / 2, 0)],
+                    [MeisjeMetDeParel, 5.3, 7.3, new THREE.Vector3(49.9, 8, 0), new THREE.Euler(0, Math.PI / 2, 0)],
+                    [TheSwing, 5.3, 7.3, new THREE.Vector3(49.9, 8, -20), new THREE.Euler(0, Math.PI / 2, 0)],
+                    [LibertyLeadingthePeople, 5.3, 7.3, new THREE.Vector3(21, 8, 10), new THREE.Euler(0, Math.PI / 2, 0)],
+                    [TheDeathofSocrates, 5.3, 7.3, new THREE.Vector3(21, 8, -10), new THREE.Euler(0, Math.PI / 2, 0)],
+                    [TheScream, 5.3, 7.3, new THREE.Vector3(30, 8, -29.9)],
+                    [night, 5.3, 7.3, new THREE.Vector3(9, 8, -29.9)],
+                    [ThePersistenceofMemory, 5.3, 7.3, new THREE.Vector3(-14, 8, -29.9)],
+                    [HappyTears, 5.3, 7.3, new THREE.Vector3(-37, 8, -29.9)]
+                ];
+
+                artworks.forEach(([texture, width, height, pos, rot = new THREE.Euler(0, 0, 0)]) => {
+                    const plane = addArtworkPlane(texture, width, height, pos);
+                    plane.rotation.copy(rot);
+                });
+
+
+                const buttonConfigs = [
+                    ["lascauxTexture", 0x968F00, new THREE.Vector3(-40, 4, 29.9)],
+                    ["pyramid", 0x968F00, new THREE.Vector3(-20, 4, 29.9)],
+                    ["glass", 0x968F00, new THREE.Vector3(0, 4, 29.9)],
+                    ["monaTexture", 0x968F00, new THREE.Vector3(20, 4, 29.9)],
+                    ["TheLastSupper", 0x968F00, new THREE.Vector3(40, 4, 29.9)],
+                    ["TheBirthofVenus", 0x968F00, new THREE.Vector3(49.9, 4, 19), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["MeisjeMetDeParel", 0x968F00, new THREE.Vector3(49.9, 4, 0), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["TheSwing", 0x968F00, new THREE.Vector3(49.9, 4, -20), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["LibertyLeadingthePeople", 0x968F00, new THREE.Vector3(21, 3.5, 10), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["TheDeathofSocrates", 0x968F00, new THREE.Vector3(21, 3.5, -10), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["TheScream", 0x968F00, new THREE.Vector3(30, 4, -29.9)],
+                    ["night", 0x968F00, new THREE.Vector3(9, 4, -29.9)],
+                    ["ThePersistenceofMemory", 0x968F00, new THREE.Vector3(-14, 4, -29.9)],
+                    ["HappyTears", 0x968F00, new THREE.Vector3(-37, 4, -29.9)],
+                    ["LePenseur", 0x968F00, new THREE.Vector3(12.4, 1.5, 10), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["venus", 0x968F00, new THREE.Vector3(12.4, 1.5, -8), [1, 0.5, 0.2], new THREE.Euler(0, Math.PI / 2, 0)],
+                    ["venus_of_willendorf", 0x968F00, new THREE.Vector3(-21, 2.5, 2.5)]
+                ];
+
+                buttonConfigs.forEach(([name, color, pos, size = [1, 0.5, 0.2], rot = new THREE.Euler(0, 0, 0)]) => {
+                    addButtonCube(name, color, pos, size, rot);
+                });
+
+                const cubeConfigs = [
+                    [new THREE.Vector3(-58.1, 5, 15), new THREE.Vector3(1, 22, 12), 0xffffff],
+                    [new THREE.Vector3(-58.1, 5, -15), new THREE.Vector3(1, 22, 12), 0xffffff],
+                    [new THREE.Vector3(-21, 1, 0), new THREE.Vector3(5, 5, 5), 0x000000],
+                    [new THREE.Vector3(15, 1, -8), new THREE.Vector3(5, 2, 5), 0x000000],
+                    [new THREE.Vector3(15, 1, 10), new THREE.Vector3(5, 2, 5), 0x000000]
+                ];
+
+                cubeConfigs.forEach(([pos, size, color]) => {
+                    addBlackCube(pos, size, color);
+                });
+
+                const spotLightSettings = [
+                    { pos: [-40, 10, 25], target: [-40, 9, 29.9] },      // 동굴 벽화
+                    { pos: [-20, 10, 25], target: [-20, 9, 29.9] },      // 이집트 벽화
+                    { pos: [0, 10, 25], target: [0, 10.5, 29.9] },       // 글라스
+                    { pos: [20, 13, 25], target: [20, 12, 29.9] },       // 모나리자
+                    { pos: [40, 8, 25], target: [40, 8, 29.9] },         // 최후의 만찬
+                    { pos: [42, 9, 19], target: [49.9, 8, 19] },         // 비너스의 탄생
+                    { pos: [42, 12, 0], target: [49.9, 11, 0] },         // 진주 귀걸이
+                    { pos: [42, 10, -20], target: [49.9, 10, -20] },     // 그네
+                    { pos: [28, 9, 10], target: [21, 9, 10] },           // 자유의 여신
+                    { pos: [28, 9, -10], target: [21, 9, -10] },         // 소크라테스
+                    { pos: [30, 10, -22.9], target: [30, 10, -29.9] },   // 절규
+                    { pos: [9, 10, -22.9], target: [9, 10, -29.9] },     // 별빛밤
+                    { pos: [-14, 10, -22.9], target: [-14, 10, -29.9] }, // 기억의 지속
+                    { pos: [-37, 10, -22.9], target: [-37, 10, -29.9] }, // 행복한 눈물
+                    { pos: [7, 13, -8], target: [10, 10, -8] },          // 비너스
+                    { pos: [7, 13, 10], target: [10, 10, 10] },          // 라오콘
+                    { pos: [-21, 10, 5], target: [-19, 1, -1] },         // 고대 비너스
+                ];
+
+                spotLightSettings.forEach(({ pos, target }) => {
+                    addSpotLight(new THREE.Vector3(...pos), new THREE.Vector3(...target));
+                });
+            }
+
+            const models = [
+                ['./Resources/gallery.glb', [0, 1, 0], [5, 5, 5], 0xffffff, 0],
+                ['./Resources/venus_of_willendorf.glb', [-20, -11.5, -1], [4, 4, 4], 0x624B37, 0.4],
+                ['./Resources/venus.glb', [15, 2, -8], [40, 40, 40], 0xABB3BE, 0.4],
+                ['./Resources/LePenseur.glb', [15, 2, 10], [4, 4, 4], 0x624B37, 0.4]
+            ];
+
+            models.forEach(([url, pos, scale, color, intensity]) => {
+                loadModelWithCollision(
+                    url,
+                    new THREE.Vector3(...pos),
+                    new THREE.Vector3(...scale),
+                    color,
+                    intensity
+                );
+            });
+
+
+            // 키보드 입력
+            window.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+            window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+            // 창 크기 조정
+            window.addEventListener("resize", () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+
+            // Pointer Lock 설정
+            const overlay = document.getElementById('lockOverlay');
+            overlay.addEventListener('click', () => {
+                container.requestPointerLock().catch((err) => {
+                    console.warn("PointerLock 요청 실패:", err);
+                });
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === container) {
+                    isLocked = true;
+                    document.addEventListener('mousemove', onMouseMove);
+                    overlay.style.display = 'none';
+                    if (sound && !sound.isPlaying) {
+                        sound.play();
+                    }
+                } else {
+                    isLocked = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    overlay.style.display = 'flex';
+                }
+            });
+            addArtworkAndButtons();
+            loadBackgroundMusic();
+        }
+
+        function updateSpotLights() {
+            const threshold = 10; // 거리 기준 값
+
+            spotLights.forEach(light => {
+                const dist = light.position.distanceTo(cameraParent.position);
+                light.visible = dist < threshold; // 거리에 따라 on/off
+            });
+        }
+
+        function addArtworkPlane(texture, width, height, position, rotation = new THREE.Euler(0, 0, 0)) {
+            const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.DoubleSide });
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
+            plane.position.copy(position);
+            plane.rotation.copy(rotation);
+            scene.add(plane);
+            return plane;
+        }
+        function addButtonCube(name, color, position, size = [1, 0.5, 0.2], rotation = new THREE.Euler(0, 0, 0)) {
+            const material = new THREE.MeshStandardMaterial({ color });
+            const geometry = new THREE.BoxGeometry(...size);
+            const cube = new THREE.Mesh(geometry, material);
+            cube.name = name;
+            cube.position.copy(position);
+            cube.rotation.copy(rotation);
+            scene.add(cube);
+        }
+        function addBlackCube(position, size, color) {
+            const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const material = new THREE.MeshStandardMaterial({ color });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.copy(position);
+            scene.add(cube);
+            collidableObjects.push(cube);
+        }
+
+        function addSpotLight(lightPos, targetPos) {
+            const spotLight = new THREE.SpotLight(0xffffff, 10);
+
+            spotLight.position.copy(lightPos);
+            spotLight.target.position.copy(targetPos);
+
+            spotLight.angle = Math.PI / 3;  // 조명 각도
+            spotLight.penumbra = 0.4;       // 부드러운 테두리
+            spotLight.decay = 1;          // 감쇠
+            spotLight.distance = 20;        // 조명 거리
+            spotLight.castShadow = false;
+
+            scene.add(spotLight);
+            scene.add(spotLight.target);
+            spotLights.push(spotLight);
+            // 광원 방향 디버그 코드
+            //const helper = new THREE.SpotLightHelper(spotLight);
+            //scene.add(helper);
+        }
+        function loadModelWithCollision(url, position, scale, emissiveColor, emissiveIntensity, rotation = new THREE.Euler(0, 0, 0)) {
+            const loader = new GLTFLoader();
+            loader.load(url, (gltf) => {
+                const model = gltf.scene;
+                model.position.copy(position);
+                model.scale.copy(scale);
+                model.rotation.copy(rotation);
+                scene.add(model);
+
+                // 충돌 처리용으로 내부 mesh들을 collidableObjects에 추가
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material.emissive = new THREE.Color(emissiveColor);
+                        child.material.emissiveIntensity = emissiveIntensity;
+                        collidableObjects.push(child);
+                    }
+                });
+            });
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            // 마우스 위치 정규화
+            const rect = renderer.domElement.getBoundingClientRect();
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            if (intersects.length > 0) {
+                const clicked = intersects[0].object;
+
+                const descBox = document.querySelector('.description');
+
+                switch (clicked.name) {
+                    case "lascauxTexture":
+                        descBox.innerHTML = `<b>프랑스 선사인 - 라스코 동굴 벽화</b><br>
+                        기원전 1만 7000년경 그려진 라스코 동굴 벽화는 프랑스 남서부에 위치한 선사시대 유적으로, 들소, 사슴, 말 등의 동물이 생생하게 묘사되어 있습니다. 선사인들이 사냥의 성공을 기원하거나 신앙적 목적을 가지고 그린 것으로 추정되며, 인류 최초의 예술 표현 중 하나로 평가받습니다.`;
+                        break;
+                    case "pyramid":
+                        descBox.innerHTML = `<b>이집트 장인 - 이집트 벽화</b><br>
+                        고대 이집트의 무덤, 사원 내부에 그려진 벽화는 파라오의 생애, 신들의 이야기, 내세의 장면 등을 담고 있으며, 매우 상징적이고 기하학적인 구도를 보여줍니다. 색상이 선명하게 유지된 채로 현존하며 고대 예술의 위엄을 보여줍니다.`;
+                        break;
+                    case "glass":
+                        descBox.innerHTML = `<b>중세 장인 - 스테인드 글라스</b><br>
+                        고딕 성당의 창문에 삽입된 스테인드 글라스는 성경 이야기와 성인들의 삶을 색유리 조각으로 묘사한 작품입니다. 빛을 통해 종교적 신비감을 전달하며, 중세 유럽의 종교 예술의 정수를 보여줍니다.`;
+                        break;
+                    case "monaTexture":
+                        descBox.innerHTML = `<b>레오나르도 다 빈치 - 모나리자</b><br>
+                        1503년경부터 1506년까지 그려진 이 초상화는 모델의 신비로운 미소로 유명합니다. 루브르 박물관에 소장되어 있으며, 섬세한 음영과 인체 비례의 정교함, sfumato 기법으로 회화사의 정점이라 평가됩니다.`;
+                        break;
+                    case "TheLastSupper":
+                        descBox.innerHTML = `<b>레오나르도 다 빈치 - 최후의 만찬</b><br>
+                        예수와 12 제자의 마지막 식사 장면을 묘사한 이 벽화는 밀라노의 산타 마리아 델레 그라치에 성당에 있습니다. 인물들의 감정 표현, 원근법, 구도 모두 뛰어나며 르네상스의 대표작입니다.`;
+                        break;
+                    case "TheBirthofVenus":
+                        descBox.innerHTML = `<b>산드로 보티첼리 - 비너스의 탄생</b><br>
+                        1486년경 제작된 이 그림은 로마 신화 속 사랑과 아름다움의 여신 비너스가 조개껍데기 위에 탄 채 태어나는 장면을 묘사합니다. 우아한 선과 상징이 가득한 이 작품은 피렌체 우피치 미술관에 소장되어 있습니다.`;
+                        break;
+                    case "MeisjeMetDeParel":
+                        descBox.innerHTML = `<b>요하네스 페르메이르 - 진주 귀걸이를 한 소녀</b><br>
+                        17세기 네덜란드 화가 페르메이르의 대표작으로, 익명의 소녀가 진주 귀걸이를 착용한 채 관객을 바라보는 장면이 인상적입니다. '북유럽의 모나리자'로 불리며 델프트에서 제작되었습니다.    `;
+                        break;
+                    case "TheSwing":
+                        descBox.innerHTML = `<b>장 오노레 프라고나르 - 그네</b><br>
+                        로코코 시대의 전형적인 낭만과 쾌락을 보여주는 이 작품은 귀족 여성이 그네를 타는 장면을 묘사하며, 풍부한 색채와 부드러운 필치로 사랑받는 작품입니다.`;
+                        break;
+                    case "LibertyLeadingthePeople":
+                        descBox.innerHTML = `<b>외젠 들라크루아 - 민중을 이끄는 자유의 여신</b><br>
+                        1830년 7월 혁명을 배경으로 자유의 여신이 깃발을 들고 민중을 이끄는 모습을 표현한 이 작품은 프랑스 혁명 정신의 상징입니다. 낭만주의의 역동성과 감정을 극대화한 걸작입니다.`;
+                        break;
+                    case "TheDeathofSocrates":
+                        descBox.innerHTML = `<b>자크 루이 다비드 - 소크라테스의 죽음</b><br>
+                        신고전주의 양식의 대표작으로, 사형을 선고받은 소크라테스가 독배를 받기 전 지혜와 철학의 의미를 제자들에게 전하는 장면을 담고 있습니다. 윤리적 결단과 이성의 힘을 상징합니다.`;
+                        break;
+                    case "TheScream":
+                        descBox.innerHTML = `<b>에드바르 뭉크 - 절규</b><br>
+                        현대인의 불안과 고통을 상징하는 이 표현주의 회화는 인물의 비명과 왜곡된 배경을 통해 감정의 강렬함을 전달합니다. 노르웨이의 대표적인 명화입니다.`;
+                        break;
+                    case "night":
+                        descBox.innerHTML = `<b>빈센트 반 고흐 - 별이 빛나는 밤에</b><br>
+                        강렬한 푸른 밤하늘에 소용돌이치는 별들을 그린 이 작품은 고흐가 생레미 정신병원에서 남긴 걸작입니다. 자연과 감정의 융합, 그리고 내면의 고통을 환상적으로 표현했습니다.`;
+                        break;
+                    case "ThePersistenceofMemory":
+                        descBox.innerHTML = `<b>살바도르 달리 - 기억의 지속</b><br>
+                        녹아내리는 시계를 통해 시간의 유동성과 무의식을 표현한 이 작품은 초현실주의를 대표합니다. "시간은 흐른다"는 개념을 직관적으로 형상화한 기념비적 작품입니다.`;
+                        break;
+                    case "HappyTears":
+                        descBox.innerHTML = `<b>로이 리히텐슈타인 - 행복한 눈물</b><br>
+                        만화 스타일로 여성의 얼굴을 표현한 이 팝아트 작품은 강렬한 원색, 점묘 표현, 그리고 아이러니한 감정이 혼합된 현대적 미학을 보여줍니다.`;
+                        break;
+                    case "LePenseur":
+                        descBox.innerHTML = `<b>오귀스트 로댕 - 생각하는 사람</b><br>
+                        근육질의 남성이 턱을 괴고 앉아 사색에 잠긴 이 조각상은 인간의 내면을 성찰하는 철학적 상징물로, 로댕의 대표작 중 하나입니다.`;
+                        break;
+                    case "venus":
+                        descBox.innerHTML = `<b>고대 그리스 작가 미상 - 밀로의 비너스</b><br>
+                        기원전 130년경 조각된 것으로 추정되는 이 조각상은 팔이 없는 채로 발견되었지만, 조화롭고 이상적인 비례로 고대 그리스 미의식을 대표합니다.`;
+                        break;
+                    case "venus_of_willendorf":
+                        descBox.innerHTML = `<b>선사시대 조각가 - 빌렌도르프의 비너스</b><br>
+                        기원전 2만 5천년 전 제작된 것으로 보이는 이 작은 조각상은 과장된 여성 신체를 통해 다산과 풍요의 상징으로 여겨지며, 오스트리아에서 발굴되었습니다.`;
+                        break;
+                    default:
+                        descBox.innerHTML = `<b>미술 작품 아래 버튼을 클릭하세요.</b><br>작품에 대한 설명을 볼 수 있습니다.`;
+                }
+
+            }
+        });
+        function onMouseMove(e) {
+            yaw -= e.movementX * sensitivity;
+            pitch -= e.movementY * sensitivity;
+
+            const limit = Math.PI / 2 - 0.01;
+            pitch = Math.max(-limit, Math.min(limit, pitch));
+        }
+        function loadBackgroundMusic() {
+            const listener = new THREE.AudioListener();
+            camera.add(listener); // 🎧 카메라에 붙임
+
+            sound = new THREE.Audio(listener);
+            const audioLoader = new THREE.AudioLoader();
+
+            audioLoader.load('./Resources/music.mp3', function (buffer) {
+                sound.setBuffer(buffer);
+                sound.setLoop(true);
+                sound.setVolume(0.5);
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isLocked) {
+                updateSpotLights();
+                camera.rotation.x = pitch;         // 상하 회전 (pitch)
+                cameraParent.rotation.y = yaw;     // 좌우 회전 (yaw)
+
+                const moveDir = new THREE.Vector3();
+                const front = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+                const right = new THREE.Vector3().crossVectors(front, camera.up);
+
+                if (keys["w"]) moveDir.add(front);
+                if (keys["s"]) moveDir.sub(front);
+                if (keys["a"]) moveDir.sub(right);
+                if (keys["d"]) moveDir.add(right);
+
+                if (moveDir.lengthSq() > 0) {
+                    moveDir.normalize();
+
+                    const raycaster = new THREE.Raycaster(cameraParent.position, moveDir, 0, 0.6);
+                    const intersects = raycaster.intersectObjects(collidableObjects, true);
+
+                    if (intersects.length == 0) {
+                        cameraParent.position.add(moveDir.multiplyScalar(moveSpeed));
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+
+</html>
