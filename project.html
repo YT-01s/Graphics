@@ -50,6 +50,12 @@
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/examples/loaders/GLTFLoader.js';
+        //import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+
+        //const loader = new GLTFLoader();
+        //const dracoLoader = new DRACOLoader();
+        //dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        //loader.setDRACOLoader(dracoLoader);
 
         let scene, camera, renderer, cameraParent;
         const keys = {};
@@ -73,7 +79,7 @@
         init();
         animate();
 
-        function init() {
+        async function init() {
             const container = document.getElementById("three-area");
 
             loadingOverlay = document.getElementById('loadingOverlay');
@@ -98,10 +104,6 @@
                     lockOverlay.style.display = 'flex';
                 }
             });
-
-            setTimeout(() => {
-                loadingOverlay.style.display = 'none';
-            }, 2000);
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
@@ -251,6 +253,23 @@
                     intensity
                 );
             });
+            const artworkPromise = addArtworkAndButtons();
+            const musicPromise = loadBackgroundMusic();
+            const modelPromises = models.map(([url, pos, scale, color, intensity]) =>
+                loadModelWithCollision(
+                    url,
+                    new THREE.Vector3(...pos),
+                    new THREE.Vector3(...scale),
+                    color,
+                    intensity
+                )
+            );
+
+            await Promise.all([
+                artworkPromise,
+                musicPromise,
+                ...modelPromises
+            ]);
 
 
             // 키보드 입력
@@ -288,6 +307,7 @@
             });
             addArtworkAndButtons();
             loadBackgroundMusic();
+            loadingOverlay.style.display = 'none';
         }
 
         function updateSpotLights() {
@@ -345,22 +365,23 @@
             //scene.add(helper);
         }
         function loadModelWithCollision(url, position, scale, emissiveColor, emissiveIntensity, rotation = new THREE.Euler(0, 0, 0)) {
-            const loader = new GLTFLoader();
-            loader.load(url, (gltf) => {
-                const model = gltf.scene;
-                model.position.copy(position);
-                model.scale.copy(scale);
-                model.rotation.copy(rotation);
-                scene.add(model);
-
-                // 충돌 처리용으로 내부 mesh들을 collidableObjects에 추가
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.material.emissive = new THREE.Color(emissiveColor);
-                        child.material.emissiveIntensity = emissiveIntensity;
-                        collidableObjects.push(child);
-                    }
-                });
+            return new Promise((resolve, reject) => {
+                const loader = new GLTFLoader();
+                loader.load(url, (gltf) => {
+                    const model = gltf.scene;
+                    model.position.copy(position);
+                    model.scale.copy(scale);
+                    model.rotation.copy(rotation);
+                    scene.add(model);
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.emissive = new THREE.Color(emissiveColor);
+                            child.material.emissiveIntensity = emissiveIntensity;
+                            collidableObjects.push(child);
+                        }
+                    });
+                    resolve(); // ✅ 완료
+                }, undefined, reject);
             });
         }
 
@@ -462,16 +483,17 @@
             pitch = Math.max(-limit, Math.min(limit, pitch));
         }
         function loadBackgroundMusic() {
-            const listener = new THREE.AudioListener();
-            camera.add(listener); // 🎧 카메라에 붙임
-
-            sound = new THREE.Audio(listener);
-            const audioLoader = new THREE.AudioLoader();
-
-            audioLoader.load('./Resources/music.mp3', function (buffer) {
-                sound.setBuffer(buffer);
-                sound.setLoop(true);
-                sound.setVolume(0.5);
+            return new Promise((resolve, reject) => {
+                const listener = new THREE.AudioListener();
+                camera.add(listener);
+                sound = new THREE.Audio(listener);
+                const audioLoader = new THREE.AudioLoader();
+                audioLoader.load('./Resources/music.mp3', function (buffer) {
+                    sound.setBuffer(buffer);
+                    sound.setLoop(true);
+                    sound.setVolume(0.5);
+                    resolve(); // ✅ 완료
+                }, undefined, reject);
             });
         }
 
