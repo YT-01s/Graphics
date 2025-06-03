@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>미술관 이용 규칙</title>
+    <link rel="icon" href="./Resources/lobby.jpg" type="image/png" />
+    <style>
+        body {
+            display: grid;
+            place-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #1c1c1c, #0d0d0d);
+            color: #f0f0f0;
+            font-family: 'Georgia', serif;
+            margin: 0;
+            text-align: center;
+            padding: 0;
+        }
+
+        h1 {
+            font-size: 2.4em;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 5px rgba(255, 255, 255, 0.1);
+        }
+
+        .rules-container {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-50px);
+            backdrop-filter: blur(8px);
+            padding: 35px 40px;
+            border-radius: 16px;
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.07);
+            max-width: 720px;
+            width: 100%;
+            text-align: left;
+            line-height: 1.8;
+        }
+
+        .rule {
+            margin-bottom: 18px;
+            position: relative;
+            padding-left: 28px;
+        }
+
+        .rule::before {
+            content: "✦";
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: #FFD700;
+            font-size: 1.1em;
+        }
+
+        .highlight {
+            color: #FFDD57;
+            font-weight: bold;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 14px 36px;
+            font-size: 17px;
+            background-color: rgba(255, 215, 0, 0.1);
+            color: #FFD700;
+            border: 2px solid #FFD700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+        }
+
+        button:hover {
+            background-color: #FFD700;
+            color: #000;
+        }
+        .button-wrapper {
+            margin-top: -70px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🎨 미술관 이용 안내</h1>
+
+    <div class="rules-container">
+        <div class="rule">본 미술관은 <span class="highlight">시대 흐름별</span>로 구성되어 있습니다.</div>
+        <div class="rule"><span class="highlight">WASD 키</span>로 이동하고, <span class="highlight">마우스</span>로 시야를 조절할 수
+            있습니다.</div>
+        <div class="rule">작품에 너무 가까이 접근하면 <span class="highlight">훼손</span>되니 유의해주시기 바랍니다.</div>
+        <div class="rule">각 작품 하단 버튼을 클릭하면 <span class="highlight">작품 설명</span>을 볼 수 있습니다.</div>
+        <div class="rule">쾌적한 관람을 위해 <span class="highlight">전체화면 또는 데스크탑</span> 사용을 권장합니다.</div>
+    </div>
+    <div class="button-wrapper">
+    <button onclick="location.href='project.html'">동의하고 입장하기</button>
+    </div>    
+</body>
+
+</html>

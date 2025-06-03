@@ -4,44 +4,63 @@
 <head>
     <meta charset="UTF-8" />
     <title>3D 미술관 메인</title>
+    <link rel="icon" href="./Resources/lobby.jpg" type="image/png" />
     <style>
         body {
-            background-color: #121212;
-            color: white;
-            font-family: Arial, sans-serif;
+            display: grid;
+            place-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #1c1c1c, #0d0d0d);
+            color: #f0f0f0;
+            font-family: 'Georgia', serif;
             text-align: center;
-            padding-top: 100px;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2.4em;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 5px rgba(255, 255, 255, 0.1);
         }
 
         img {
             width: 860px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
         }
 
         button {
-            margin-top: 30px;
-            padding: 12px 30px;
-            font-size: 16px;
-            background-color: #444;
-            color: white;
-            border: none;
-            border-radius: 10px;
+            margin-top: 20px;
+            padding: 14px 36px;
+            font-size: 17px;
+            background-color: rgba(255, 215, 0, 0.1);
+            color: #FFD700;
+            border: 2px solid #FFD700;
+            border-radius: 12px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
         }
 
         button:hover {
-            background-color: #666;
+            background-color: #FFD700;
+            color: #000;
+        }
+
+        .button-wrapper {
+            margin-top: -150px;
+            /* 원하는 만큼 조절 */
         }
     </style>
 </head>
 
 <body>
-    <h1>미술관에 오신것을 환영합니다.</h1>
+    <h1>🎨 미술관에 오신 것을 환영합니다</h1>
     <img src="./Resources/lobby.jpg" alt="메인 이미지">
     <br>
-    <button onclick="location.href='project.html'">입장하기</button>
+    <div class="button-wrapper">
+        <button onclick="location.href='rule.html'">입장하기</button>
+    </div>
 </body>
 
 </html>
