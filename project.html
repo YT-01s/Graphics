@@ -54,7 +54,7 @@
         import Stats from 'stats';
 
         const stats = new Stats();
-        stats.dom.id = 'stats'; 
+        stats.dom.id = 'stats';
         stats.dom.style.top = '12px';
         stats.dom.style.left = '10px';
         stats.dom.style.position = 'fixed';
@@ -71,6 +71,7 @@
         let sound;
         let lockOverlay;
         let loadingOverlay;
+        const loadingTasks = [];
 
         const BOUNDS = {
             minX: -20,
@@ -108,10 +109,6 @@
                 }
             });
 
-            setTimeout(() => {
-                loadingOverlay.style.display = 'none';
-            }, 2000);
-
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
 
@@ -137,9 +134,11 @@
             const textureLoader = new THREE.TextureLoader();
 
             async function loadTexture(url) {
-                return new Promise((resolve, reject) => {
+                const promise = new Promise((resolve, reject) => {
                     textureLoader.load(url, resolve, undefined, reject);
                 });
+                loadingTasks.push(promise);
+                return promise;
             }
 
             async function addArtworkAndButtons() {
@@ -295,8 +294,14 @@
                     overlay.style.display = 'flex';
                 }
             });
-            addArtworkAndButtons();
-            loadBackgroundMusic();
+            (async () => {
+                await addArtworkAndButtons();
+                loadBackgroundMusic();
+
+                Promise.all(loadingTasks).then(() => {
+                    loadingOverlay.style.display = 'none';
+                });
+            })();
         }
 
         function updateSpotLights() {
@@ -355,21 +360,26 @@
         }
         function loadModelWithCollision(url, position, scale, emissiveColor, emissiveIntensity) {
             const loader = new GLTFLoader();
-            loader.load(url, (gltf) => {
-                const model = gltf.scene;
-                model.position.copy(position);
-                model.scale.copy(scale);
-                scene.add(model);
+            const promise = new Promise((resolve, reject) => {
+                loader.load(url, (gltf) => {
+                    const model = gltf.scene;
+                    model.position.copy(position);
+                    model.scale.copy(scale);
+                    scene.add(model);
 
-                // 충돌 처리용으로 내부 mesh들을 collidableObjects에 추가
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.material.emissive = new THREE.Color(emissiveColor);
-                        child.material.emissiveIntensity = emissiveIntensity;
-                        collidableObjects.push(child);
-                    }
-                });
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.emissive = new THREE.Color(emissiveColor);
+                            child.material.emissiveIntensity = emissiveIntensity;
+                            collidableObjects.push(child);
+                        }
+                    });
+
+                    resolve();
+                }, undefined, reject);
             });
+
+            loadingTasks.push(promise);
         }
 
         const raycaster = new THREE.Raycaster();
@@ -445,8 +455,8 @@
                         만화 스타일로 여성의 얼굴을 표현한 이 팝아트 작품은 강렬한 원색, 점묘 표현, 그리고 아이러니한 감정이 혼합된 현대적 미학을 보여줍니다.`;
                         break;
                     case "LePenseur":
-                        descBox.innerHTML = `<b>오귀스트 로댕 - 생각하는 사람</b><br>
-                        근육질의 남성이 턱을 괴고 앉아 사색에 잠긴 이 조각상은 인간의 내면을 성찰하는 철학적 상징물로, 로댕의 대표작 중 하나입니다.`;
+                        descBox.innerHTML = `<b>미켈란젤로 - 다비드</b><br>
+                        1501년부터 1504년 사이에 제작된 이 조각상은 성경 속 인물 다윗을 주제로 하며, 르네상스 시대의 인간 중심적 사고와 이상적인 육체미를 극대화한 대표작입니다. 전투 직전의 긴장된 표정과 사실적인 근육 묘사를 통해 인간의 정신과 육체의 완전함을 강조합니다.`;
                         break;
                     case "venus":
                         descBox.innerHTML = `<b>고대 그리스 작가 미상 - 밀로의 비너스</b><br>
