@@ -33,7 +33,7 @@
 
 
     <div id="lockOverlay"
-        style="position:absolute; top:0; left:0; right:0; bottom:0; background:#000000aa; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
+        style="position:absolute; top:0; left:0; right:0; bottom:0; background:#000000; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
         클릭하여 시작
     </div>
 
@@ -42,7 +42,8 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three/build/three.module.js",
-                "three/examples/": "https://unpkg.com/three/examples/jsm/"
+                "three/examples/": "https://unpkg.com/three/examples/jsm/", 
+                "stats": "https://unpkg.com/three/examples/jsm/libs/stats.module.js"
             }
         }
     </script>
@@ -50,12 +51,14 @@
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/examples/loaders/GLTFLoader.js';
-        //import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+        import Stats from 'stats';
 
-        //const loader = new GLTFLoader();
-        //const dracoLoader = new DRACOLoader();
-        //dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-        //loader.setDRACOLoader(dracoLoader);
+        const stats = new Stats();
+        stats.dom.id = 'stats'; 
+        stats.dom.style.top = '12px';
+        stats.dom.style.left = '10px';
+        stats.dom.style.position = 'fixed';
+        document.body.appendChild(stats.dom);
 
         let scene, camera, renderer, cameraParent;
         const keys = {};
@@ -79,7 +82,7 @@
         init();
         animate();
 
-        async function init() {
+        function init() {
             const container = document.getElementById("three-area");
 
             loadingOverlay = document.getElementById('loadingOverlay');
@@ -104,6 +107,10 @@
                     lockOverlay.style.display = 'flex';
                 }
             });
+
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 2000);
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
@@ -156,7 +163,7 @@
                 const artworks = [
                     [lascauxTexture, 13, 7.3, new THREE.Vector3(-40, 8, 29.9)],
                     [pyramid, 12, 7, new THREE.Vector3(-20, 8, 29.9)],
-                    [glass, 13, 7.5, new THREE.Vector3(0, 8.2, 29.9)],
+                    [glass, 13, 10.5, new THREE.Vector3(0, 10, 29.9)],
                     [monaTexture, 5.3, 7.3, new THREE.Vector3(20, 8, 29.9)],
                     [TheLastSupper, 13, 7.5, new THREE.Vector3(40, 8.1, 29.9)],
                     [TheBirthofVenus, 5.3, 7.3, new THREE.Vector3(49.9, 8, 19), new THREE.Euler(0, Math.PI / 2, 0)],
@@ -227,8 +234,8 @@
                     { pos: [9, 10, -22.9], target: [9, 10, -29.9] },     // 별빛밤
                     { pos: [-14, 10, -22.9], target: [-14, 10, -29.9] }, // 기억의 지속
                     { pos: [-37, 10, -22.9], target: [-37, 10, -29.9] }, // 행복한 눈물
-                    { pos: [7, 13, -8], target: [10, 10, -8] },          // 비너스
-                    { pos: [7, 13, 10], target: [10, 10, 10] },          // 라오콘
+                    { pos: [7, 12, -8], target: [10, 10, -8] },          // 비너스
+                    { pos: [7, 12, 10], target: [10, 10, 10] },          // 라오콘
                     { pos: [-21, 10, 5], target: [-19, 1, -1] },         // 고대 비너스
                 ];
 
@@ -241,7 +248,7 @@
                 ['./Resources/gallery.glb', [0, 1, 0], [5, 5, 5], 0xffffff, 0],
                 ['./Resources/venus_of_willendorf.glb', [-20, -11.5, -1], [4, 4, 4], 0x624B37, 0.4],
                 ['./Resources/venus.glb', [15, 2, -8], [40, 40, 40], 0xABB3BE, 0.4],
-                ['./Resources/LePenseur.glb', [15, 2, 10], [4, 4, 4], 0x624B37, 0.4]
+                ['./Resources/david.glb', [12, 2, -12], [1.5, 1.5, 1.5], 0xABB3BE, 0.4]
             ];
 
             models.forEach(([url, pos, scale, color, intensity]) => {
@@ -253,23 +260,6 @@
                     intensity
                 );
             });
-            const artworkPromise = addArtworkAndButtons();
-            const musicPromise = loadBackgroundMusic();
-            const modelPromises = models.map(([url, pos, scale, color, intensity]) =>
-                loadModelWithCollision(
-                    url,
-                    new THREE.Vector3(...pos),
-                    new THREE.Vector3(...scale),
-                    color,
-                    intensity
-                )
-            );
-
-            await Promise.all([
-                artworkPromise,
-                musicPromise,
-                ...modelPromises
-            ]);
 
 
             // 키보드 입력
@@ -307,7 +297,6 @@
             });
             addArtworkAndButtons();
             loadBackgroundMusic();
-            loadingOverlay.style.display = 'none';
         }
 
         function updateSpotLights() {
@@ -364,24 +353,22 @@
             //const helper = new THREE.SpotLightHelper(spotLight);
             //scene.add(helper);
         }
-        function loadModelWithCollision(url, position, scale, emissiveColor, emissiveIntensity, rotation = new THREE.Euler(0, 0, 0)) {
-            return new Promise((resolve, reject) => {
-                const loader = new GLTFLoader();
-                loader.load(url, (gltf) => {
-                    const model = gltf.scene;
-                    model.position.copy(position);
-                    model.scale.copy(scale);
-                    model.rotation.copy(rotation);
-                    scene.add(model);
-                    model.traverse((child) => {
-                        if (child.isMesh) {
-                            child.material.emissive = new THREE.Color(emissiveColor);
-                            child.material.emissiveIntensity = emissiveIntensity;
-                            collidableObjects.push(child);
-                        }
-                    });
-                    resolve(); // ✅ 완료
-                }, undefined, reject);
+        function loadModelWithCollision(url, position, scale, emissiveColor, emissiveIntensity) {
+            const loader = new GLTFLoader();
+            loader.load(url, (gltf) => {
+                const model = gltf.scene;
+                model.position.copy(position);
+                model.scale.copy(scale);
+                scene.add(model);
+
+                // 충돌 처리용으로 내부 mesh들을 collidableObjects에 추가
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material.emissive = new THREE.Color(emissiveColor);
+                        child.material.emissiveIntensity = emissiveIntensity;
+                        collidableObjects.push(child);
+                    }
+                });
             });
         }
 
@@ -483,49 +470,48 @@
             pitch = Math.max(-limit, Math.min(limit, pitch));
         }
         function loadBackgroundMusic() {
-            return new Promise((resolve, reject) => {
-                const listener = new THREE.AudioListener();
-                camera.add(listener);
-                sound = new THREE.Audio(listener);
-                const audioLoader = new THREE.AudioLoader();
-                audioLoader.load('./Resources/music.mp3', function (buffer) {
-                    sound.setBuffer(buffer);
-                    sound.setLoop(true);
-                    sound.setVolume(0.5);
-                    resolve(); // ✅ 완료
-                }, undefined, reject);
+            const listener = new THREE.AudioListener();
+            camera.add(listener); // 🎧 카메라에 붙임
+
+            sound = new THREE.Audio(listener);
+            const audioLoader = new THREE.AudioLoader();
+
+            audioLoader.load('./Resources/music.mp3', function (buffer) {
+                sound.setBuffer(buffer);
+                sound.setLoop(true);
+                sound.setVolume(0.5);
             });
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isLocked) {
-                updateSpotLights();
-                camera.rotation.x = pitch;         // 상하 회전 (pitch)
-                cameraParent.rotation.y = yaw;     // 좌우 회전 (yaw)
+            if (!isLocked) return;
+            updateSpotLights();
+            camera.rotation.x = pitch;         // 상하 회전 (pitch)
+            cameraParent.rotation.y = yaw;     // 좌우 회전 (yaw)
 
-                const moveDir = new THREE.Vector3();
-                const front = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-                const right = new THREE.Vector3().crossVectors(front, camera.up);
+            const moveDir = new THREE.Vector3();
+            const front = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+            const right = new THREE.Vector3().crossVectors(front, camera.up);
 
-                if (keys["w"]) moveDir.add(front);
-                if (keys["s"]) moveDir.sub(front);
-                if (keys["a"]) moveDir.sub(right);
-                if (keys["d"]) moveDir.add(right);
+            if (keys["w"]) moveDir.add(front);
+            if (keys["s"]) moveDir.sub(front);
+            if (keys["a"]) moveDir.sub(right);
+            if (keys["d"]) moveDir.add(right);
 
-                if (moveDir.lengthSq() > 0) {
-                    moveDir.normalize();
+            if (moveDir.lengthSq() > 0) {
+                moveDir.normalize();
 
-                    const raycaster = new THREE.Raycaster(cameraParent.position, moveDir, 0, 0.6);
-                    const intersects = raycaster.intersectObjects(collidableObjects, true);
+                const raycaster = new THREE.Raycaster(cameraParent.position, moveDir, 0, 0.6);
+                const intersects = raycaster.intersectObjects(collidableObjects, true);
 
-                    if (intersects.length == 0) {
-                        cameraParent.position.add(moveDir.multiplyScalar(moveSpeed));
-                    }
+                if (intersects.length == 0) {
+                    cameraParent.position.add(moveDir.multiplyScalar(moveSpeed));
                 }
             }
             renderer.render(scene, camera);
+            stats.update();
         }
     </script>
 </body>

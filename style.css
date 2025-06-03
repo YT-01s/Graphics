@@ -76,6 +76,12 @@ body {
   pointer-events: none;
   user-select: none;
 }
+#stats {
+  position: fixed;
+  top: 100px; /* 원하는 값으로 변경 */
+  left: 100px;
+  z-index: 10000;
+}
 #loadingOverlay.fade-out {
     opacity: 0;
     transition: opacity 1s ease-out;
