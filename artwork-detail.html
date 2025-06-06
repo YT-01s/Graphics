@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <title>작품 자세히 보기</title>
+  <!-- style.css 연결 -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="./Resources/lobby.jpg" type="image/png" />
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #C3C3C3;
+      position: relative;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="myCanvas"></canvas>
+  <button id="topLeftButton">돌아가기</button>
+  <select id="textureSelector">
+    <option value="LascauxCaves.jpg">라스코 동굴 벽화</option>
+    <option value="Pyramid.jpg">이집트 벽화</option>
+    <option value="glass.jpg">스테인드 글라스</option>
+    <option value="MonnaLisa.jpg">모나리자</option>
+    <option value="TheLastSupper.jpg">최후의 만찬</option>
+    <option value="TheBirthofVenus.jpg">비너스의 탄생</option>
+    <option value="MeisjeMetDeParel.jpg">진주 귀걸이를 한 소녀</option>
+    <option value="TheSwing.jpg">그네</option>
+    <option value="LibertyLeadingthePeople.jpg">민중을 이끄는 자유의 여신</option>
+    <option value="TheDeathofSocrates.jpg">스크라테스의 죽음</option>
+    <option value="TheScream.jpg">절규</option>
+    <option value="night.jpg">별이 빛나는 밤에</option>
+    <option value="ThePersistenceofMemory.jpg">기억의 지속</option>
+    <option value="HappyTears.jpg">행복한 눈물</option>
+  </select>
+
+  <script>
+    // 버튼 클릭 시 이전 페이지로 돌아가기
+    document.getElementById("topLeftButton").addEventListener("click", () => {
+      window.history.back();
+    });
+  </script>
+
+  <!-- 1) 텍스처 + 포그 계산 포함 fragment 쉐이더 -->
+  <script type="x-shader/x-fragment" id="phongFogFSDirect">
+    precision mediump float;
+
+    varying vec3 fNormal, fWorldPos;
+    varying vec2 fTexCoord;
+    uniform sampler2D texImage;
+    uniform vec4 fogColor;
+
+    uniform vec3 lightSrc;
+    uniform vec4 lightAmbient, lightDiffuse, lightSpecular;
+    uniform vec4 matAmbient, matDiffuse, matSpecular;
+    uniform float matShininess;
+
+    void main() {
+      vec4 ambient = lightAmbient * matAmbient;
+      vec3 N = normalize(fNormal);
+      vec3 L = normalize(lightSrc - fWorldPos);
+      float kd = max(dot(L, N), 0.0);
+      vec4 diffuse = kd * lightDiffuse * matDiffuse;
+      vec3 V = normalize(-fWorldPos);
+      vec3 H = normalize(L + V);
+      float ks = pow(max(dot(N, H), 0.0), matShininess);
+      vec4 specular = ks * lightSpecular * matSpecular;
+
+      float fogDepth = length(-fWorldPos);
+      float fogFactor = smoothstep(2.0, 10.0, fogDepth);
+
+      vec4 texColor = texture2D(texImage, fTexCoord);
+      vec4 lightingColor = ambient + diffuse + specular;
+      vec4 color = lightingColor * texColor;
+
+      gl_FragColor = mix(color, fogColor, fogFactor);
+      gl_FragColor.a = 1.0;
+    }
+  </script>
+
+  <!-- 2) 텍스처용 VS (uv 전송만 남김) -->
+  <script type="x-shader/x-vertex" id="phongTexVS">
+    varying vec3 fNormal, fWorldPos;
+    varying vec2 fTexCoord;
+
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      fNormal = normalize(normalMatrix * normal);
+      fWorldPos = (modelViewMatrix * vec4(position, 1.0)).xyz;
+      fTexCoord = uv;
+    }
+  </script>
+
+  <!-- 3) importmap & three.js 모듈 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three/build/three.module.js"
+      }
+    }
+  </script>
+
+  <!-- 4) main 스크립트 -->
+  <script type="module">
+    import * as THREE from "three";
+
+    let scene, camera, renderer, cube, material;
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    init();
+    animate();
+
+    // 텍스처 로드 함수
+    function loadTextureFromFile(filename) {
+      const loader = new THREE.TextureLoader();
+      const tex = loader.load(`./Resources/${filename}`);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    // 파일명에 따라 새로운 지오메트리(크기)를 반환하는 함수
+    function createGeometryForFilename(filename) {
+      switch (filename) {
+        case "LascauxCaves.jpg":
+        case "Pyramid.jpg":
+          return new THREE.BoxGeometry(6, 0.1, 4);
+        case "glass.jpg":
+          return new THREE.BoxGeometry(4, 0.1, 5);
+        case "MonnaLisa.jpg":
+          return new THREE.BoxGeometry(4.5, 0.1, 5);
+        case "TheLastSupper.jpg":
+          return new THREE.BoxGeometry(7, 0.1, 4);
+        case "TheBirthofVenus.jpg":
+          return new THREE.BoxGeometry(5, 0.1, 5.5);
+        case "MeisjeMetDeParel.jpg":
+        case "TheSwing.jpg":
+        case "LibertyLeadingthePeople.jpg":
+        case "TheDeathofSocrates.jpg":
+        case "TheScream.jpg":
+        case "night.jpg":
+        case "ThePersistenceofMemory.jpg":
+          return new THREE.BoxGeometry(4, 0.1, 5);
+        case "HappyTears.jpg":
+          return new THREE.BoxGeometry(4, 0.1, 4);
+        default:
+          return new THREE.BoxGeometry(4, 0.1, 4);
+      }
+    }
+
+    // 텍스처와 지오메트리(크기)를 함께 교체하는 함수
+    function updateCubeAppearance(filename) {
+      const newTex = loadTextureFromFile(filename);
+      material.uniforms.texImage.value = newTex;
+      material.needsUpdate = true;
+
+      const newGeometry = createGeometryForFilename(filename);
+      cube.geometry.dispose();
+      cube.geometry = newGeometry;
+      cube.rotation.set(-Math.PI / 1.7, 0, 0);
+    }
+
+    function init() {
+      // 씬 & 카메라
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xC3C3C3);
+
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 100);
+      camera.position.set(0, 2, 5);
+      camera.lookAt(0, 1, 0);
+
+      // 렌더러
+      renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("myCanvas"),
+        antialias: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // 초기 텍스처 & 지오메트리 (LascauxCaves.jpg 기준)
+      const initialTexture = loadTextureFromFile("LascauxCaves.jpg");
+      const initialGeometry = createGeometryForFilename("LascauxCaves.jpg");
+
+      // ShaderMaterial 생성
+      material = new THREE.ShaderMaterial({
+        uniforms: {
+          lightSrc: { value: new THREE.Vector3(0, 5, 0) },
+          lightAmbient: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+          lightDiffuse: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+          lightSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+          matAmbient: { value: new THREE.Vector4(0.2, 0.2, 0.2, 1.0) },
+          matDiffuse: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+          matSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+          matShininess: { value: 50.0 },
+          fogColor: { value: new THREE.Vector4(0.0, 0.0, 0.0, 1.0) },
+          texImage: { value: initialTexture }
+        },
+        vertexShader: document.getElementById("phongTexVS").textContent,
+        fragmentShader: document.getElementById("phongFogFSDirect").textContent,
+        side: THREE.DoubleSide
+      });
+
+      // 큐브 생성 및 씬에 추가
+      cube = new THREE.Mesh(initialGeometry, material);
+      cube.rotation.x = -Math.PI / 1.7;
+      cube.position.set(0, 1, 0);
+      scene.add(cube);
+
+      window.addEventListener("resize", onWindowResize);
+
+      // 드롭다운 이벤트: 파일명(텍스처) 선택 → 큐브 지오메트리/텍스처 동시 교체
+      const texSelector = document.getElementById("textureSelector");
+      texSelector.addEventListener("change", () => {
+        const chosenFile = texSelector.value;
+        updateCubeAppearance(chosenFile);
+      });
+    }
+
+    const canvas = renderer.domElement;
+
+    canvas.addEventListener("mousedown", (event) => {
+      isDragging = true;
+      previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+      };
+    });
+
+    canvas.addEventListener("mousemove", (event) => {
+      if (!isDragging) return;
+
+      const deltaMove = {
+        x: event.clientX - previousMousePosition.x,
+        y: event.clientY - previousMousePosition.y
+      };
+
+      const rotationSpeed = 0.005;
+      const deltaEuler = new THREE.Euler(
+        deltaMove.y * rotationSpeed,
+        deltaMove.x * rotationSpeed,
+        0,
+        'YXZ'
+      );
+      const deltaQuat = new THREE.Quaternion().setFromEuler(deltaEuler);
+      cube.quaternion.premultiply(deltaQuat);
+
+      previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+      };
+    });
+
+    window.addEventListener("mouseup", () => {
+      isDragging = false;
+    });
+    window.addEventListener("mouseout", () => {
+      isDragging = false;
+    });
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+
+</html>

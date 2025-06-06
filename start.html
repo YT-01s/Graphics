@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>3D 미술관 메인</title>
+  <link rel="icon" href="./Resources/lobby.jpg" type="image/png" />
+  <style>
+    body {
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      background: linear-gradient(to bottom, #1c1c1c, #0d0d0d);
+      color: #f0f0f0;
+      font-family: 'Georgia', serif;
+      text-align: center;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 2.4em;
+      margin-bottom: 30px;
+      text-shadow: 1px 1px 5px rgba(255, 255, 255, 0.1);
+    }
+
+    .gallery-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gallery-container img {
+      width: 860px;
+      max-width: 90vw;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+    }
+
+    .gallery-container button {
+      margin-top: 20px;
+      padding: 14px 36px;
+      font-size: 17px;
+      background-color: rgba(255, 215, 0, 0.1);
+      color: #FFD700;
+      border: 2px solid #FFD700;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+    }
+
+    .gallery-container button:hover {
+      background-color: #FFD700;
+      color: #000;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🎨 미술관에 오신 것을 환영합니다</h1>
+  <div class="gallery-container">
+    <img src="./Resources/lobby.jpg" alt="메인 이미지" class="gallery-image">
+    <button onclick="location.href='rule.html'">입장하기</button>
+  </div>
+</body>
+
+</html>
