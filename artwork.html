@@ -4,7 +4,6 @@
 <head>
   <meta charset="utf-8" />
   <title>작품 자세히 보기</title>
-  <!-- style.css 연결 -->
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="./Resources/lobby.jpg" type="image/png" />
   <style>
@@ -24,8 +23,8 @@
   <canvas id="myCanvas"></canvas>
   <button id="topLeftButton">돌아가기</button>
   <select id="textureSelector">
-    <option value="LascauxCaves.jpg">라스코 동굴 벽화</option>
-    <option value="Pyramid.jpg">이집트 벽화</option>
+    <option value="Lascaux_painting.jpg">라스코 동굴 벽화</option>
+    <option value="The_judgement_of_the_dead_in_the_presence_of_Osiris.jpg">이집트 벽화</option>
     <option value="glass.jpg">스테인드 글라스</option>
     <option value="MonnaLisa.jpg">모나리자</option>
     <option value="TheLastSupper.jpg">최후의 만찬</option>
@@ -41,13 +40,11 @@
   </select>
 
   <script>
-    // 버튼 클릭 시 이전 페이지로 돌아가기
     document.getElementById("topLeftButton").addEventListener("click", () => {
-      window.history.back();
+      window.location.href = "main.html";
     });
   </script>
 
-  <!-- 1) 텍스처 + 포그 계산 포함 fragment 쉐이더 -->
   <script type="x-shader/x-fragment" id="phongFogFSDirect">
     precision mediump float;
 
@@ -84,7 +81,6 @@
     }
   </script>
 
-  <!-- 2) 텍스처용 VS (uv 전송만 남김) -->
   <script type="x-shader/x-vertex" id="phongTexVS">
     varying vec3 fNormal, fWorldPos;
     varying vec2 fTexCoord;
@@ -97,7 +93,6 @@
     }
   </script>
 
-  <!-- 3) importmap & three.js 모듈 -->
   <script type="importmap">
     {
       "imports": {
@@ -106,7 +101,6 @@
     }
   </script>
 
-  <!-- 4) main 스크립트 -->
   <script type="module">
     import * as THREE from "three";
 
@@ -126,11 +120,11 @@
       return tex;
     }
 
-    // 파일명에 따라 새로운 지오메트리(크기)를 반환하는 함수
+    // 파일명에 따라 새로운 크기를 반환하는 함수
     function createGeometryForFilename(filename) {
       switch (filename) {
-        case "LascauxCaves.jpg":
-        case "Pyramid.jpg":
+        case "Lascaux_painting.jpg":
+        case "The_judgement_of_the_dead_in_the_presence_of_Osiris.jpg":
           return new THREE.BoxGeometry(6, 0.1, 4);
         case "glass.jpg":
           return new THREE.BoxGeometry(4, 0.1, 5);
@@ -155,7 +149,7 @@
       }
     }
 
-    // 텍스처와 지오메트리(크기)를 함께 교체하는 함수
+    // 텍스처와 크기 함께 교체하는 함수
     function updateCubeAppearance(filename) {
       const newTex = loadTextureFromFile(filename);
       material.uniforms.texImage.value = newTex;
@@ -184,9 +178,9 @@
       });
       renderer.setSize(window.innerWidth, window.innerHeight);
 
-      // 초기 텍스처 & 지오메트리 (LascauxCaves.jpg 기준)
-      const initialTexture = loadTextureFromFile("LascauxCaves.jpg");
-      const initialGeometry = createGeometryForFilename("LascauxCaves.jpg");
+      // 초기 텍스처
+      const initialTexture = loadTextureFromFile("Lascaux_painting.jpg");
+      const initialGeometry = createGeometryForFilename("Lascaux_painting.jpg");
 
       // ShaderMaterial 생성
       material = new THREE.ShaderMaterial({
@@ -215,7 +209,7 @@
 
       window.addEventListener("resize", onWindowResize);
 
-      // 드롭다운 이벤트: 파일명(텍스처) 선택 → 큐브 지오메트리/텍스처 동시 교체
+      // 드롭다운 이벤트
       const texSelector = document.getElementById("textureSelector");
       texSelector.addEventListener("change", () => {
         const chosenFile = texSelector.value;

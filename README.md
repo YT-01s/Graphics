@@ -19,7 +19,7 @@
 
 ## 🔗 데모 바로가기
 
-[▶️ 미술관 입장하기](https://YT-01s.github.io/Graphics/main.html)
+[▶️ 미술관 입장하기](https://YT-01s.github.io/Graphics/start.html)
 
 > `main.html`은 프로젝트의 메인 화면이며, 입장 버튼을 통해 전시 공간으로 이동할 수 있습니다.
 
