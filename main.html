@@ -112,6 +112,7 @@
         animate();
 
         function init() {
+            window.history.pushState({}, '', window.location.pathname);
             const container = document.getElementById("three-area");
 
             loadingOverlay = document.getElementById('loadingOverlay');
